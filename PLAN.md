@@ -1,125 +1,105 @@
-# Task Scheduler Fullstack Application
+# Task Scheduler Full-Stack Application
 
-this directory will be the root folder for a monorepo project with specification:
+This document outlines the plan for a full-stack task scheduler application.
 
-- backend:
-  - nestJS for main restAPI endpoint
-    - project structure following: github.com/royib/clean-architecture-nestJS
-  - typescript services to act as a cronjob and pushing data to redis list
-  - typescript services to act as a consumer and consume data from redis list
-- frontend:
-  - nextJS typescript
-  - tailwindcss
-  - redux (persisted in localStorage)
-- database: postgreSQL
-- cache & pub/sub: redis
-- tools:
-  - docker-compose
-  - dbmate
+## Project Specifications
+
+This project will be a monorepo with the following specifications:
+
+- **Backend**:
+  - **NestJS** for the main REST API endpoint.
+  - A **TypeScript service** to act as a cronjob, pushing data to a Redis list.
+  - A **TypeScript service** to act as a consumer, consuming data from the Redis list.
+- **CLI**:
+  - A **Commander-based CLI application** for managing task schedules using **BullMQ**.
+  - Jobs added to BullMQ should include **retry attempts**.
+- **Frontend**:
+  - **vite/react** with **TypeScript**.
+  - **Tailwind CSS** for styling.
+  - **Redux** for state management, persisted in `localStorage`.
+- **Database**: **PostgreSQL**.
+- **Cache & Pub/Sub**: **Redis**.
+- **Tools**:
+  - A **shared `.env` file** in the root project directory and shared packages to load it.
+  - **Docker Compose** for deployment.
+  - **DBMate** for database migrations.
 
 # MVP
 
-## Phase 1: prototyping main functional
+## Phase 1: Prototyping Main Functionality
 
-### creating the dummy
+### Dummy Webhook API Path in Backend
 
-first, create a basic dummy webhook service with following feature:
+First, we will create a basic dummy webhook API path with the following features:
 
-- all request body should be log in console
-- create a increment variable everytime the service have a request
-- every 7 & 11 consecutive request, the service will return an error response
-- the service should return a response in random latency between 100-500 ms to simulate process time
-- the service will be dockerize and registered as service in docker-compose
+- All request bodies will be **logged to the console**.
+- An **incrementing variable** will track the number of requests received.
+- The service will return an **error response** on the 7th and 11th consecutive requests.
+- The service will have a **random latency** between 100-500 ms to simulate processing time.
+- The service will be **containerized using Docker** and registered as a service in Docker Compose.
 
-### Base user journey
+### Base User Journey
 
-the user journey will be as followed:
+The user journey is as follows:
 
-- user create a `task` with data such as:
+1.  The user creates a `task` with the following data:
+    - `task_name`: The name of the task.
+    - `task_schedule`: A cron-like format for the schedule.
+    - `webhook_url`: The URL of the webhook (we will use a dummy Discord webhook for testing).
+    - `json_payload`: The JSON payload to be sent to the webhook.
+    - `max_retry`: The maximum number of times to retry the task.
+    - `task_status`: The status of the task (`ready`, `running`, `failed`). Defaults to `ready`.
+    - `created_at` and `updated_at` timestamps.
+2.  The created task data will be stored in a **PostgreSQL table** named `tasks` with a unique UUID.
+3.  **CRUD operations** for tasks will be implemented in the backend.
 
-  - task name
-  - task schedule (cron-like format)
-  - webhook URL (will be using dummy restAPI discord webhook)
-  - JSON payload
-  - max_retry
-  - task status (ready, running, failed) (default: ready)
-  - timestamp (updated_at & created_at)
+### CLI Publisher Worker
 
-- data created will be stored in postgreSQL table called `tasks` with a unique UUID
+This CLI tool will periodically check the `tasks` table. If a new task with a `ready` status and a matched `task_schedule` is found, the CLI will add a job to **BullMQ** and set the task status to `running`.
 
-### task scheduling engine (publisher)
+### CLI Listener Worker
 
-first, create an infinite loop running service running that check `task` table from database.
+This CLI tool will act as a worker, listening to **BullMQ** and performing the following actions:
 
-check the `task` schedule with `cronmatch`. if schedule not match with current time, then sleep the service for 5s before continue the loop.
+- From the task data, the worker will:
+  1.  Record the `start_time`.
+  2.  Create an entry in the `task_logs` table with the following content:
+      - `id`
+      - `task_id`
+      - `execution_time` (default: `null`)
+      - `status` (`running`, `finish`, `failed`, default: `running`)
+      - `retry_count` (default: 0)
+      - `message` (default: `null`)
+      - `created_at` timestamp
+  3.  Get the `task` data from the database based on the `task-uuid`.
+  4.  Make an **HTTP POST request** to the `webhook_url` with the `json_payload` as the body.
+  5.  Calculate the `execution_time` from the `start_time`.
 
-if `task` with schedule matches. LPUSH new data to REDIS list with format
+#### Successful Execution
 
-```
-LPUSH task_list <task-uuid>:<retry-count>
-```
+If the request returns a **success response**, the service will update the `task_logs` data as follows:
 
-the retry-count should be started from 0.
+- `execution_time`: The calculated execution time.
+- `status`: `finish`.
+- `message`: The response from the POST request.
 
-also, set the `task` status to running.
+The service will also set the `task` status field back to **"ready"**.
 
-### task scheduling engine (listener)
+#### Failed Execution
 
-create an infinite loop running service that check list `task_list` from redis, if not found, sleep the service for 10s before continue the loop.
+If the request returns a **failed response**, the service will attempt to retry the task based on `max_retry` from the task.
 
-if `task_list` is not empty, do:
-
-```
-BRPOP task_list
-```
-
-the data returned should be look like this
-
-```
-<task-uuid>:<retry-count>
-```
-
-from this data, the service should do:
-
-- make start_time variable
-- make an entry to `task_logs` table with following content:
-  - id
-  - task_id
-  - execution_time (default: null)
-  - status (running, finish, failed) (default: running)
-  - retry_count (default: 0)
-  - message (default: null)
-  - created_at timestamp
-- get `task` data from database base on `task-uuid`
-- do HTTP POST request to `webhook URL` with `JSON payload` body
-- count execution time from start_time
-
-if the request return a success response. update the `task_logs` data created before to:
-
-- execution_time -> execution time
-- status -> finish
-- message: -> response from the post request
-
-also set the `task` status field to **"ready"** again
-
-if the request return a failed response, the service should check <retry-count> from redis data.
-
-the service should do:
-
-- if it less than `max_retry` from `task`:
-
-  - update the task_logs:
-    - execution_time -> execution time
-    - status -> failed
-    - retry_count -> <retry-count> from redis data
-    - message: -> response from the post request
-  - increment the <retry-count> and run `LPUSH task_list <task-uuid>:<retry-count>`
-
-- if it more/equal than `max_retry` from `task`:
-
-  - update the task_logs:
-    - execution_time -> execution time
-    - status -> failed
-    - retry_count -> <retry-count> from redis data
-    - message: -> response from the post request
-  - update the `task` status to **"failed"**
+- If the `<retry-count>` is **less than** `max_retry` from the `task`:
+  - Update the `task_logs` as follows:
+    - `execution_time`: The calculated execution time.
+    - `status`: `failed`.
+    - `retry_count`: The `<retry-count>` from the Redis data.
+    - `message`: The response from the POST request.
+  - Increment the `<retry-count>` and run `LPUSH task_list <task-uuid>:<retry-count>`.
+- If the `<retry-count>` is **greater than or equal to** `max_retry` from the `task`:
+  - Update the `task_logs` as follows:
+    - `execution_time`: The calculated execution time.
+    - `status`: `failed`.
+    - `retry_count`: The `<retry-count>` from the Redis data.
+    - `message`: The response from the POST request.
+  - Update the `task` status to **"failed"**.

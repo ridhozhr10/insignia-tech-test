@@ -8,6 +8,7 @@
     "test": "pnpm run start"
   },
   "dependencies": {
+    "@ridhozhr10/config": "workspace:*",
     "@ridhozhr10/foo": "workspace:*"
   },
   "devDependencies": {

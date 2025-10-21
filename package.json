@@ -7,13 +7,18 @@
     "apps/*"
   ],
   "scripts": {
-    "clean": "pnpm run -r clean",
-    "build": "pnpm run -r build",
-    "test": "pnpm run -r test",
+    "build": "pnpm --filter \"./packages/**\" run -r build",
+    "clean": "pnpm --filter \"./packages/**\" run -r clean",
+    "test": "pnpm --filter \"./packages/**\" run -r test",
+    "clean:all": "pnpm run -r clean",
+    "build:all": "pnpm run -r build",
+    "test:all": "pnpm run -r test",
+    "db:migrate": "dbmate up",
     "lint": "eslint ."
   },
   "devDependencies": {
     "@eslint/js": "~9.37.0",
+    "dbmate": "^2.28.0",
     "eslint": "~9.37.0",
     "eslint-plugin-prettier": "~5.5.0",
     "eslint-plugin-react": "~7.37.4",

@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.build.json",
   "compilerOptions": {
+    "strictPropertyInitialization": false,
     "paths": {
       "@ridhozhr10/components/*": [
         "./packages/components/src/*"
