@@ -1,5 +1,5 @@
 {
-  "name": "@nighttrax/components",
+  "name": "@ridhozhr10/components",
   "version": "1.0.0",
   "scripts": {
     "build": "pnpm run clean && pnpm run compile",
@@ -11,7 +11,7 @@
     "react": "~19.2.0"
   },
   "dependencies": {
-    "@nighttrax/foo": "workspace:*"
+    "@ridhozhr10/foo": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",

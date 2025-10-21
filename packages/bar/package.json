@@ -1,5 +1,5 @@
 {
-  "name": "@nighttrax/bar",
+  "name": "@ridhozhr10/bar",
   "version": "1.0.0",
   "main": "dist/index",
   "types": "dist/index",
@@ -13,7 +13,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@nighttrax/foo": "workspace:*"
+    "@ridhozhr10/foo": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
