@@ -8,8 +8,6 @@ This project will be a monorepo with the following specifications:
 
 - **Backend**:
   - **NestJS** for the main REST API endpoint.
-  - A **TypeScript service** to act as a cronjob, pushing data to a Redis list.
-  - A **TypeScript service** to act as a consumer, consuming data from the Redis list.
 - **CLI**:
   - A **Commander-based CLI application** for managing task schedules using **BullMQ**.
   - Jobs added to BullMQ should include **retry attempts**.
@@ -51,7 +49,7 @@ The user journey is as follows:
     - `task_status`: The status of the task (`ready`, `running`, `failed`). Defaults to `ready`.
     - `created_at` and `updated_at` timestamps.
 2.  The created task data will be stored in a **PostgreSQL table** named `tasks` with a unique UUID.
-3.  **CRUD operations** for tasks will be implemented in the backend.
+3.  CRUD operations for tasks will be implemented in the backend.
 
 ### CLI Publisher Worker
 
